@@ -27,3 +27,59 @@
     <script src="script.js"></script>
 </body>
 </html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Toy Shop</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="admin-header">
+    <h1>🧸 My Toy Shop</h1>
+    <a href="admin.html">Manage Products</a>
+  </header>
+
+  <main class="admin-container">
+    <h2>Our Toys</h2>
+    <div id="shop-products"></div>
+  </main>
+
+  <script>
+    const products = JSON.parse(
+      localStorage.getItem("toyShopProducts") || "[]"
+    );
+
+    const container = document.getElementById("shop-products");
+
+    function escapeHTML(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[char]);
+    }
+
+    if (products.length === 0) {
+      container.textContent = "Our toys will be listed here soon!";
+    } else {
+      container.innerHTML = products.map(product => `
+        <article class="admin-product">
+          ${product.image
+            ? `<img src="${product.image}" alt="">`
+            : `<div class="no-photo">No photo</div>`}
+          <div class="product-info">
+            <h3>${escapeHTML(product.name)}</h3>
+            <p>₹${Number(product.price).toFixed(2)}</p>
+            <p>${escapeHTML(product.description)}</p>
+          </div>
+        </article>
+      `).join("");
+    }
+  </script>
+</body>
+</html>
