@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Toy Shop Admin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="admin-header">
+    <h1>🧸 Toy Shop Admin</h1>
+    <a href="index.html">View Shop</a>
+  </header>
+
+  <main class="admin-container">
+    <h2 id="form-title">Add New Product</h2>
+
+    <form id="product-form">
+      <input type="hidden" id="product-id">
+
+      <label for="name">Toy Name</label>
+      <input id="name" type="text" placeholder="e.g. Teddy Bear" required>
+
+      <label for="price">Price (₹)</label>
+      <input id="price" type="number" min="0.01" step="0.01"
+             placeholder="499" required>
+
+      <label for="description">Description</label>
+      <textarea id="description" placeholder="Describe the toy"
+                required></textarea>
+
+      <label for="photo">Toy Photo</label>
+      <input id="photo" type="file" accept="image/*">
+
+      <button type="submit" id="save-button">Add Product</button>
+      <button type="button" id="cancel-button" hidden>
+        Cancel Edit
+      </button>
+    </form>
+
+    <h2>Manage Products</h2>
+    <div id="product-list"></div>
+  </main>
+
+  <script>
+    const STORAGE_KEY = "toyShopProducts";
+
+    let products = JSON.parse(
+      localStorage.getItem(STORAGE_KEY) || "[]"
+    );
+
+    const form = document.getElementById("product-form");
+    const photoInput = document.getElementById("photo");
+
+    function saveProducts() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(products));
+    }
+
+    function escapeHTML(value) {
+      return String(value).replace(/[&<>"']/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      })[char]);
+    }
+
+    function renderProducts() {
+      const list = document.getElementById("product-list");
+
+      if (products.length === 0) {
+        list.textContent = "No products yet. Add your first toy!";
+        return;
+      }
+
+      list.innerHTML = products.map(product => `
+        <article class="admin-product">
+          ${product.image
+            ? `<img src="${product.image}" alt="">`
+            : `<div class="no-photo">No photo</div>`}
+          <div class="product-info">
+            <h3>${escapeHTML(product.name)}</h3>
+            <p>₹${Number(product.price).toFixed(2)}</p>
+            <p>${escapeHTML(product.description)}</p>
+            <button type="button" data-edit="${product.id}">
+              Edit
+            </button>
+            <button type="button" class="delete-button"
+                    data-delete="${product.id}">
+              Delete
+            </button>
+          </div>
+        </article>
+      `).join("");
+    }
+
+    function resetForm() {
+      form.reset();
+      document.getElementById("product-id").value = "";
+      document.getElementById("form-title").textContent =
+        "Add New Product";
+      document.getElementById("save-button").textContent =
+        "Add Product";
+      document.getElementById("cancel-button").hidden = true;
+    }
+
+    function readPhoto(file) {
+      return new Promise((resolve, reject) => {
+        if (!file) {
+          resolve("");
+          return;
+        }
+
+        if (!file.type.startsWith("image/")) {
+          reject(new Error("Please select an image file."));
+          return;
+        }
+
+        if (file.size > 700 * 1024) {
+          reject(new Error(
+            "Please choose an image under 700 KB for this demo."
+          ));
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Could not read photo."));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const id = document.getElementById("product-id").value;
+      const oldProduct = products.find(p => p.id === id);
+
+      try {
+        const selectedPhoto = await readPhoto(photoInput.files[0]);
+
+        const product = {
+          id: id || crypto.randomUUID(),
+          name: document.getElementById("name").value.trim(),
+          price: Number(document.getElementById("price").value),
+          description:
+            document.getElementById("description").value.trim(),
+          image: selectedPhoto || oldProduct?.image || ""
+        };
+
+        if (!product.name || !product.description ||
+            !Number.isFinite(product.price) || product.price <= 0) {
+          alert("Please enter a name, description and valid price.");
+          return;
+        }
+
+        if (id) {
+          products = products.map(p => p.id === id ? product : p);
+        } else {
+          products.push(product);
+        }
+
+        saveProducts();
+        resetForm();
+        renderProducts();
+        alert(id ? "Product updated!" : "Product added!");
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+
+    document.getElementById("product-list")
+      .addEventListener("click", event => {
+        const editId = event.target.dataset.edit;
+        const deleteId = event.target.dataset.delete;
+
+        if (editId) {
+          const product = products.find(p => p.id === editId);
+          if (!product) return;
+
+          document.getElementById("product-id").value = product.id;
+          document.getElementById("name").value = product.name;
+          document.getElementById("price").value = product.price;
+          document.getElementById("description").value =
+            product.description;
+
+          document.getElementById("form-title").textContent =
+            "Edit Product";
+          document.getElementById("save-button").textContent =
+            "Save Changes";
+          document.getElementById("cancel-button").hidden = false;
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+
+        if (deleteId) {
+          const product = products.find(p => p.id === deleteId);
+          if (!product) return;
+
+          if (confirm(`Delete ${product.name}?`)) {
+            products = products.filter(p => p.id !== deleteId);
+            saveProducts();
+            renderProducts();
+          }
+        }
+      });
+
+    document.getElementById("cancel-button")
+      .addEventListener("click", resetForm);
+
+    renderProducts();
+  </script>
+</body>
+</html>
